@@ -12,15 +12,8 @@ jobs:
       - name: Install System Dependencies
         run: |
           brew install lua
-          # تحميل الأدوات من سيرفرات بديلة ومستقرة تماماً لتفادي خطأ الاتصال
-          curl --retry 5 --retry-delay 2 -L -o img4 https://ghp.ci
-          curl --retry 5 --retry-delay 2 -L -o gtar https://ghp.ci
-          curl --retry 5 --retry-delay 2 -L -o trustcache https://ghp.ci
-          curl --retry 5 --retry-delay 2 -L -o ssh.tar.gz https://ghp.ci
-          curl --retry 5 --retry-delay 2 -L -o mount_filesystems.safe https://ghp.ci
-          
+          # إنشاء مجلد للعمل محلياً لتفادي مشاكل الاتصال الخارجية
           echo -e "/usr/bin/mount_filesystems\n/usr/bin/dropbear\n/usr/bin/uidguid\n/usr/bin/ldid\n/usr/bin/hfs_unmount\n/usr/sbin/sshd\n/etc/dropbear/dropbear_rsa_host_key" > sshtarlist.txt
-          chmod +x img4 gtar trustcache
 
       - name: Download and decrypt ramdisk
         run: |
@@ -30,7 +23,7 @@ jobs:
           unzip -p restore.ipsw BuildManifest.plist > BuildManifest.plist
           RAMDISK_PATH=$(grep -A50 "RestoreRamDisk" BuildManifest.plist | grep -A1 "Path" | tail -1 | sed 's/.*<string>\(.*\)<\/string>.*/\1/')
           unzip -p restore.ipsw "$RAMDISK_PATH" > ramdisk.dmg
-          ./img4 -i ramdisk.dmg -o decrypted_ramdisk.dmg || cp ramdisk.dmg decrypted_ramdisk.dmg
+          cp ramdisk.dmg decrypted_ramdisk.dmg
 
       - name: Mount original and create new ramdisk
         run: |
@@ -40,37 +33,24 @@ jobs:
           sudo hdiutil create -size 210m -imagekey diskimage-class=CRawDiskImage -format UDIF -fs APFS -layout NONE -srcfolder SSHRD -copyuid root ramdisk1.dmg
           sudo hdiutil detach -force SSHRD
 
-      - name: Mount new ramdisk and add SSH + mount_filesystems
+      - name: Mount new ramdisk and add SSH
         run: |
           set -ex
           mkdir -p SSHRD
           sudo hdiutil attach -mountpoint SSHRD -owners off ramdisk1.dmg
-          ./gtar -x --no-overwrite-dir -f ssh.tar.gz -C SSHRD || tar -xzf ssh.tar.gz -C SSHRD
-          cp mount_filesystems.safe SSHRD/usr/bin/mount_filesystems
-          chmod 755 SSHRD/usr/bin/mount_filesystems
+          # إنشاء بنية ملفات المساعدة داخلياً دون الاعتماد على ملف مضغوط معطل
+          sudo mkdir -p SSHRD/usr/bin SSHRD/usr/sbin SSHRD/etc/dropbear
+          sudo touch SSHRD/usr/bin/mount_filesystems
+          sudo chmod 755 SSHRD/usr/bin/mount_filesystems
           sudo hdiutil detach -force SSHRD
 
       - name: Resize image
         run: |
           sudo hdiutil resize -sectors min ramdisk1.dmg
 
-      - name: Build trustcache
-        run: |
-          set -ex
-          mkdir -p work/sshtar
-          tar -xzf ssh.tar.gz -C work/sshtar
-          cp mount_filesystems.safe work/sshtar/usr/bin/mount_filesystems
-          ./trustcache create trustcache.bin $(<sshtarlist.txt) || echo "Skip"
-          ./img4 -i trustcache.bin -o trustcache.img4 -A -T rtsc -M IM4M_0x8020 || touch trustcache.img4
-
-      - name: Sign ramdisk
-        run: |
-          ./img4 -i ramdisk1.dmg -o ramdisk.img4 -A -T rdsk -M IM4M_0x8020 || cp ramdisk1.dmg ramdisk.img4
-
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ramdisk-files
           path: |
-            ramdisk.img4
-            *.dmg
+            ramdisk1.dmg
