@@ -1,24 +1,15 @@
 name: Build SSH Ramdisk
+
 on:
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: macos-latest
+
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
-
-      - name: Download Environment Tools
-        run: |
-          set -ex
-          curl -L -o img4 https://github.com
-          curl -L -o pzb https://github.com
-          curl -L -o gtar https://github.com
-          curl -L -o trustcache https://github.com
-          curl -L -o ssh.tar.gz https://github.com
-          curl -L -o mount_filesystems.safe https://github.com
-          echo -e "/usr/bin/mount_filesystems\n/usr/bin/dropbear\n/usr/bin/uidguid\n/usr/bin/ldid\n/usr/bin/hfs_unmount\n/usr/sbin/sshd\n/etc/dropbear/dropbear_rsa_host_key" > sshtarlist.txt
 
       - name: Make tools executable
         run: chmod +x img4 pzb gtar trustcache
@@ -26,10 +17,12 @@ jobs:
       - name: Download and decrypt ramdisk
         run: |
           set -ex
-          IPSW_URL="https://cdn-apple.com"
+          IPSW_URL="https://updates.cdn-apple.com/2024WinterFCS/fullrestores/052-79668/B74922D1-E0D1-46A6-A324-A1B97DFC32F6/iPhone12,3,iPhone12,5_17.4.1_21E237_Restore.ipsw"
+
           ./pzb -g BuildManifest.plist "$IPSW_URL"
           RAMDISK_PATH=$(grep -A50 "RestoreRamDisk" BuildManifest.plist | grep -A1 "Path" | tail -1 | sed 's/.*<string>\(.*\)<\/string>.*/\1/')
           ./pzb -g "$RAMDISK_PATH" "$IPSW_URL"
+
           RAMDISK_FILE=$(ls *.dmg | head -1)
           ./img4 -i "$RAMDISK_FILE" -o ramdisk.dmg
 
@@ -38,7 +31,15 @@ jobs:
           set -ex
           mkdir -p SSHRD
           sudo hdiutil attach -mountpoint SSHRD -owners off ramdisk.dmg
-          sudo hdiutil create -size 210m -imagekey diskimage-class=CRawDiskImage -format UDIF -fs APFS -layout NONE -srcfolder SSHRD -copyuid root ramdisk1.dmg
+          sudo hdiutil create \
+            -size 210m \
+            -imagekey diskimage-class=CRawDiskImage \
+            -format UDIF \
+            -fs APFS \
+            -layout NONE \
+            -srcfolder SSHRD \
+            -copyuid root \
+            ramdisk1.dmg
           sudo hdiutil detach -force SSHRD
 
       - name: Mount new ramdisk and add SSH + mount_filesystems
@@ -58,7 +59,7 @@ jobs:
       - name: Build trustcache
         run: |
           set -ex
-          ./img4 -1 094-32271-023.dmg.trustcache -o trustcache.bin
+          ./img4 -i 094-32271-023.dmg.trustcache -o trustcache.bin
           mkdir -p work/sshtar
           ./gtar -x --no-overwrite-dir -f ssh.tar.gz -C work/sshtar
           cp mount_filesystems.safe work/sshtar/usr/bin/mount_filesystems
