@@ -14,23 +14,39 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Install Dependencies
+      - name: Install System Dependencies
         run: |
           brew install lua
-          # إنشاء مجلدات وملفات التعديل محلياً لتفادي مشاكل الشبكة
-          echo -e "/usr/bin/mount_filesystems\n/usr/bin/dropbear\n/usr/bin/uidguid\n/usr/bin/ldid\n/usr/bin/hfs_unmount\n/usr/sbin/sshd\n/etc/dropbear/dropbear_rsa_host_key" > sshtarlist.txt
+          # تثبيت مكتبة بايثون للتعامل مع ملفات img4 وتخطي التشفير محلياً
+          pip3 install pyimg4 pycryptodome
 
       - name: Download IPSW and Extract Ramdisk
         run: |
           set -ex
-          # تحميل ملف النظام الكامل عبر curl مع خاصية إعادة المحاولة تلقائياً
           curl --retry 5 --retry-delay 5 -L -o restore.ipsw "${{ github.event.inputs.ipsw_url }}"
-          
-          # استخراج ملفات الـ Ramdisk الأصلية
           unzip -p restore.ipsw BuildManifest.plist > BuildManifest.plist
           RAMDISK_PATH=$(grep -A50 "RestoreRamDisk" BuildManifest.plist | grep -A1 "Path" | tail -1 | sed 's/.*<string>\(.*\)<\/string>.*/\1/')
           unzip -p restore.ipsw "$RAMDISK_PATH" > ramdisk.dmg
-          cp ramdisk.dmg decrypted_ramdisk.dmg
+          
+          # فك تشفير الرامدسك برمجياً عبر بايثون لتفادي خطأ image not recognized
+          python3 -c "
+          import os
+          from pyimg4 import IM4P
+          try:
+              with open('ramdisk.dmg', 'rb') as f:
+                  data = f.read()
+              if data.startswith(b'IM4P'):
+                  im4p = IM4P(data)
+                  with open('decrypted_ramdisk.dmg', 'wb') as f_out:
+                      f_out.write(im4p.payload)
+                  print('Done decrypting')
+              else:
+                  with open('decrypted_ramdisk.dmg', 'wb') as f_out:
+                      f_out.write(data)
+          except Exception as e:
+              print('Error:', e)
+              os.system('cp ramdisk.dmg decrypted_ramdisk.dmg')
+          "
 
       - name: Mount and Patch Ramdisk (Add SSH)
         run: |
@@ -38,11 +54,9 @@ jobs:
           mkdir -p SSHRD
           sudo hdiutil attach -mountpoint SSHRD -owners off decrypted_ramdisk.dmg
           
-          # إنشاء قرص التعديل الجديد
           sudo hdiutil create -size 250m -imagekey diskimage-class=CRawDiskImage -format UDIF -fs APFS -layout NONE -srcfolder SSHRD -copyuid root ramdisk_patched.dmg
           sudo hdiutil detach -force SSHRD
           
-          # حقن مسارات خادم الـ SSH الأساسية داخل النظام الجديد
           mkdir -p PATCHED_SSHRD
           sudo hdiutil attach -mountpoint PATCHED_SSHRD -owners off ramdisk_patched.dmg
           sudo mkdir -p PATCHED_SSHRD/usr/bin PATCHED_SSHRD/usr/sbin PATCHED_SSHRD/etc/dropbear
