@@ -9,6 +9,22 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
+      - name: Download Environment Tools
+        run: |
+          set -ex
+          # تحميل أدوات التوقيع وفك التشفير للماك تلقائياً
+          curl -L -o img4 https://github.com
+          curl -L -o pzb https://github.com
+          curl -L -o gtar https://github.com
+          curl -L -o trustcache https://github.com
+          
+          # تحميل ملفات الـ SSH والملفات المساعدة تلقائياً
+          curl -L -o ssh.tar.gz https://github.com
+          curl -L -o mount_filesystems.safe https://github.com
+          
+          # إنشاء ملف sshtarlist.txt المطلوب لبناء الـ trustcache
+          echo -e "/usr/bin/mount_filesystems\n/usr/bin/dropbear\n/usr/bin/uidguid\n/usr/bin/ldid\n/usr/bin/hfs_unmount\n/usr/sbin/sshd\n/etc/dropbear/dropbear_rsa_host_key" > sshtarlist.txt
+
       - name: Make tools executable
         run: chmod +x img4 pzb gtar trustcache
 
