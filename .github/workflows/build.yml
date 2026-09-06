@@ -17,8 +17,8 @@ jobs:
       - name: Install System Dependencies
         run: |
           brew install lua
-          # تثبيت مكتبة بايثون للتعامل مع ملفات img4 وتخطي التشفير محلياً
-          pip3 install pyimg4 pycryptodome
+          # إضافة خيار كسر الحماية الافتراضية لتثبيت الحزم داخل السيرفر بأمان
+          pip3 install pyimg4 pycryptodome --break-system-packages
 
       - name: Download IPSW and Extract Ramdisk
         run: |
@@ -28,7 +28,6 @@ jobs:
           RAMDISK_PATH=$(grep -A50 "RestoreRamDisk" BuildManifest.plist | grep -A1 "Path" | tail -1 | sed 's/.*<string>\(.*\)<\/string>.*/\1/')
           unzip -p restore.ipsw "$RAMDISK_PATH" > ramdisk.dmg
           
-          # فك تشفير الرامدسك برمجياً عبر بايثون لتفادي خطأ image not recognized
           python3 -c "
           import os
           from pyimg4 import IM4P
