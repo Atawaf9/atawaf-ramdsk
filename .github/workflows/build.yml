@@ -1,4 +1,3 @@
-
 name: Build SSH Ramdisk
 on:
   workflow_dispatch:
