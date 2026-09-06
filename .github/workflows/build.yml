@@ -12,12 +12,12 @@ jobs:
       - name: Install System Dependencies
         run: |
           brew install lua
-          # تحميل الأدوات من روابط مستقرة ومباشرة مع خاصية إعادة المحاولة
-          curl --retry 5 --retry-delay 2 -L -o img4 https://githubusercontent.com
-          curl --retry 5 --retry-delay 2 -L -o gtar https://githubusercontent.com
-          curl --retry 5 --retry-delay 2 -L -o trustcache https://githubusercontent.com
-          curl --retry 5 --retry-delay 2 -L -o ssh.tar.gz https://githubusercontent.com
-          curl --retry 5 --retry-delay 2 -L -o mount_filesystems.safe https://githubusercontent.com
+          # تحميل الأدوات من سيرفرات بديلة ومستقرة تماماً لتفادي خطأ الاتصال
+          curl --retry 5 --retry-delay 2 -L -o img4 https://ghp.ci
+          curl --retry 5 --retry-delay 2 -L -o gtar https://ghp.ci
+          curl --retry 5 --retry-delay 2 -L -o trustcache https://ghp.ci
+          curl --retry 5 --retry-delay 2 -L -o ssh.tar.gz https://ghp.ci
+          curl --retry 5 --retry-delay 2 -L -o mount_filesystems.safe https://ghp.ci
           
           echo -e "/usr/bin/mount_filesystems\n/usr/bin/dropbear\n/usr/bin/uidguid\n/usr/bin/ldid\n/usr/bin/hfs_unmount\n/usr/sbin/sshd\n/etc/dropbear/dropbear_rsa_host_key" > sshtarlist.txt
           chmod +x img4 gtar trustcache
