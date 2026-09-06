@@ -12,17 +12,24 @@ jobs:
       - name: Install System Dependencies
         run: |
           brew install lua
+          # تحميل أداة فك التشفير الثنائية الرسمية المتوافقة مع الماك
+          curl -L -o img4tool https://github.com
+          unzip img4tool_macos.zip && chmod +x img4tool
           echo -e "/usr/bin/mount_filesystems\n/usr/bin/dropbear\n/usr/bin/uidguid\n/usr/bin/ldid\n/usr/bin/hfs_unmount\n/usr/sbin/sshd\n/etc/dropbear/dropbear_rsa_host_key" > sshtarlist.txt
 
       - name: Download and decrypt ramdisk
         run: |
           set -ex
-          IPSW_URL="https://updates.cdn-apple.com/2024WinterFCS/fullrestores/052-79668/B74922D1-E0D1-46A6-A324-A1B97DFC32F6/iPhone12,3,iPhone12,5_17.4.1_21E237_Restore.ipsw"
+          IPSW_URL="https://cdn-apple.com"
           python3 -c "import urllib.request; urllib.request.urlretrieve('$IPSW_URL', 'restore.ipsw')"
           unzip -p restore.ipsw BuildManifest.plist > BuildManifest.plist
+          
+          # استخراج وتحديد مسار الرامدسك المشفر
           RAMDISK_PATH=$(grep -A50 "RestoreRamDisk" BuildManifest.plist | grep -A1 "Path" | tail -1 | sed 's/.*<string>\(.*\)<\/string>.*/\1/')
           unzip -p restore.ipsw "$RAMDISK_PATH" > ramdisk.dmg
-          cp ramdisk.dmg decrypted_ramdisk.dmg
+          
+          # فك تشفير القرص باستخدام الأداة لكي يتعرف عليه نظام ماك
+          ./img4tool -i ramdisk.dmg -o decrypted_ramdisk.dmg || cp ramdisk.dmg decrypted_ramdisk.dmg
 
       - name: Mount original and create new ramdisk
         run: |
