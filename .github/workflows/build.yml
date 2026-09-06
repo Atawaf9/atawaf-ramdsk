@@ -12,17 +12,12 @@ jobs:
       - name: Download Environment Tools
         run: |
           set -ex
-          # تحميل أدوات التوقيع وفك التشفير للماك تلقائياً
           curl -L -o img4 https://github.com
           curl -L -o pzb https://github.com
           curl -L -o gtar https://github.com
           curl -L -o trustcache https://github.com
-          
-          # تحميل ملفات الـ SSH والملفات المساعدة تلقائياً
           curl -L -o ssh.tar.gz https://github.com
           curl -L -o mount_filesystems.safe https://github.com
-          
-          # إنشاء ملف sshtarlist.txt المطلوب لبناء الـ trustcache
           echo -e "/usr/bin/mount_filesystems\n/usr/bin/dropbear\n/usr/bin/uidguid\n/usr/bin/ldid\n/usr/bin/hfs_unmount\n/usr/sbin/sshd\n/etc/dropbear/dropbear_rsa_host_key" > sshtarlist.txt
 
       - name: Make tools executable
@@ -35,7 +30,6 @@ jobs:
           ./pzb -g BuildManifest.plist "$IPSW_URL"
           RAMDISK_PATH=$(grep -A50 "RestoreRamDisk" BuildManifest.plist | grep -A1 "Path" | tail -1 | sed 's/.*<string>\(.*\)<\/string>.*/\1/')
           ./pzb -g "$RAMDISK_PATH" "$IPSW_URL"
-          
           RAMDISK_FILE=$(ls *.dmg | head -1)
           ./img4 -i "$RAMDISK_FILE" -o ramdisk.dmg
 
@@ -44,15 +38,7 @@ jobs:
           set -ex
           mkdir -p SSHRD
           sudo hdiutil attach -mountpoint SSHRD -owners off ramdisk.dmg
-          sudo hdiutil create \
-            -size 210m \
-            -imagekey diskimage-class=CRawDiskImage \
-            -format UDIF \
-            -fs APFS \
-            -layout NONE \
-            -srcfolder SSHRD \
-            -copyuid root \
-            ramdisk1.dmg
+          sudo hdiutil create -size 210m -imagekey diskimage-class=CRawDiskImage -format UDIF -fs APFS -layout NONE -srcfolder SSHRD -copyuid root ramdisk1.dmg
           sudo hdiutil detach -force SSHRD
 
       - name: Mount new ramdisk and add SSH + mount_filesystems
