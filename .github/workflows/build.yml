@@ -12,7 +12,6 @@ jobs:
       - name: Install System Dependencies
         run: |
           brew install lua
-          # إنشاء مجلد للعمل محلياً لتفادي مشاكل الاتصال الخارجية
           echo -e "/usr/bin/mount_filesystems\n/usr/bin/dropbear\n/usr/bin/uidguid\n/usr/bin/ldid\n/usr/bin/hfs_unmount\n/usr/sbin/sshd\n/etc/dropbear/dropbear_rsa_host_key" > sshtarlist.txt
 
       - name: Download and decrypt ramdisk
@@ -38,7 +37,6 @@ jobs:
           set -ex
           mkdir -p SSHRD
           sudo hdiutil attach -mountpoint SSHRD -owners off ramdisk1.dmg
-          # إنشاء بنية ملفات المساعدة داخلياً دون الاعتماد على ملف مضغوط معطل
           sudo mkdir -p SSHRD/usr/bin SSHRD/usr/sbin SSHRD/etc/dropbear
           sudo touch SSHRD/usr/bin/mount_filesystems
           sudo chmod 755 SSHRD/usr/bin/mount_filesystems
